@@ -25,6 +25,7 @@ import org.springframework.cloud.context.named.NamedContextFactory;
  * @author Spencer Gibb
  * @author Dave Syer
  */
+// FeignContext 是一个为 Feign Client 创建所准备的上下文对象
 public class FeignContext extends NamedContextFactory<FeignClientSpecification> {
 
 	public FeignContext() {

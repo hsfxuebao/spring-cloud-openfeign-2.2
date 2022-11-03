@@ -84,6 +84,7 @@ class FeignClientFactoryBean
 	}
 
 	protected Feign.Builder feign(FeignContext context) {
+		// 从当前FeignClient对应的Spring子容器中获取指定类型的实例
 		FeignLoggerFactory loggerFactory = get(context, FeignLoggerFactory.class);
 		Logger logger = loggerFactory.create(this.type);
 
@@ -93,7 +94,7 @@ class FeignClientFactoryBean
 				.logger(logger)
 				.encoder(get(context, Encoder.class))
 				.decoder(get(context, Decoder.class))
-				.contract(get(context, Contract.class));
+				.contract(get(context, Contract.class)); //contract协议，用来实现模版解析
 		// @formatter:on
 
 		configureFeign(context, builder);
@@ -232,6 +233,8 @@ class FeignClientFactoryBean
 	}
 
 	protected <T> T get(FeignContext context, Class<T> type) {
+		// 从FeignContext的map集合contexts中获取指定Feign名称contextId对应的
+		// Spring子容器，并从该子容器中获取指定类型type的实例
 		T instance = context.getInstance(this.contextId, type);
 		if (instance == null) {
 			throw new IllegalStateException(
@@ -268,24 +271,32 @@ class FeignClientFactoryBean
 	 * information
 	 */
 	<T> T getTarget() {
+		// 实例化Feign上下文对象FeignContext
 		FeignContext context = this.applicationContext.getBean(FeignContext.class);
+		// todo 从Spring子容器中获取相应的实例
 		Feign.Builder builder = feign(context);
-
+		// 若url属性为空，则说明其要采用负载均衡方式调用提供者,生成有负载均衡功能的代理类
 		if (!StringUtils.hasText(this.url)) {
+			// 若name属性不以http开头
 			if (!this.name.startsWith("http")) {
 				this.url = "http://" + this.name;
 			}
 			else {
 				this.url = this.name;
 			}
+			// 将规范化的path属性连接到url后
+			// 规范化path：若path属性不以斜杠(/)开头，则为其添加斜杠，以斜杠结尾，则去掉尾部斜杠
 			this.url += cleanPath();
+			// 负载均衡调用
 			return (T) loadBalance(builder, context,
 					new HardCodedTarget<>(this.type, this.name, this.url));
 		}
+		// 这是url不为空的情况，即采用直连方式访问提供者,则生成默认的代理类
 		if (StringUtils.hasText(this.url) && !this.url.startsWith("http")) {
 			this.url = "http://" + this.url;
 		}
 		String url = this.url + cleanPath();
+		// 从Spring子容器中获取Client
 		Client client = getOptional(context, Client.class);
 		if (client != null) {
 			if (client instanceof LoadBalancerFeignClient) {
@@ -300,6 +311,7 @@ class FeignClientFactoryBean
 			}
 			builder.client(client);
 		}
+		// todo 生成默认的代理类
 		Targeter targeter = get(context, Targeter.class);
 		return (T) targeter.target(this, builder, context,
 				new HardCodedTarget<>(this.type, this.name, url));
